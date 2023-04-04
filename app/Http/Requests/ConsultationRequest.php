@@ -2,17 +2,11 @@
 
 namespace App\Http\Requests;
 
-class ConsultationRequest extends APIRequest
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rules\RequiredIf;
+
+class ConsultationRequest extends ApiRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return false;
-    }
 
     /**
      * Get the validation rules that apply to the request.
@@ -40,12 +34,8 @@ class ConsultationRequest extends APIRequest
                 'integer',
             ],
             'home_attending' => [
-                'required',
-                'date',
-            ],
-            'created_by' => [
-                'required',
-                'integer',
+                new RequiredIf($this->type_consult == 'Home visit'),
+                'nullable',
             ],
             'participants' => [
                 'required',

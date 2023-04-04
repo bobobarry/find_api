@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ConsultationRequest;
 use App\Models\Consulations;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ConsultationController extends Controller
 {
@@ -15,7 +17,7 @@ class ConsultationController extends Controller
      */
     public function index()
     {
-        return Consulations::all();
+        return [Consulations::all(),User::where('user_type', 'agent')->get()];
     }
 
     /**
@@ -27,7 +29,11 @@ class ConsultationController extends Controller
     public function store(ConsultationRequest $request)
     {
         $consulation = Consulations::create($request->validated());
-        $this->successResponse($consulation);
+        if($consulation->id !== null ) {
+            $consulation->created_by = Auth::user()->id;
+            $consulation->save();
+        }
+        return $this->successResponse($consulation);
     }
 
     /**
@@ -48,10 +54,10 @@ class ConsultationController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(ConsultationRequest $request, Consulations $consulation)
+    public function update(ConsultationRequest $request, Consulations $consultation)
     {
-        $consulation->update($request->validated());
-        return $this->successResponse($consulation, "Consultation modifiés avec sucèss");
+        $consultation->update($request->validated());
+        return $this->successResponse($consultation, "Consultation modifiés avec sucèss");
     }
 
     /**

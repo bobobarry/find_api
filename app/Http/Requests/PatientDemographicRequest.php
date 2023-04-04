@@ -93,7 +93,7 @@ class PatientDemographicRequest extends ApiRequest
                 'string',
                 'max:255'
             ],
-            'access_to_toilet' => [
+            'access_to_toilet' =>[
                 new RequiredIf($age > 18),
                 'nullable',
                 'max:255'

@@ -68,5 +68,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('rdt/started', [PatientSympthomController::class, 'started']);
         Route::apiResource('medical', MedicalBackgroundController::class);
         Route::apiResource('rdt', RDTController::class);
+        Route::post('result', [RDTController::class, 'getLastAdd']);
+        
     });
     });

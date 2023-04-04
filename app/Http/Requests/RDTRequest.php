@@ -28,7 +28,8 @@ class RDTRequest extends ApiRequest
                 'required',
                 'string',
             ],
-            'rdt_image' => 'required',
+            'rdt_image' => 'required|image|mimes:jpeg,png,jpg|
+            max:500000'
         ];
     }
 }

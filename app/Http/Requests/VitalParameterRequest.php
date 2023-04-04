@@ -31,7 +31,10 @@ class VitalParameterRequest extends ApiRequest
                 'required',
                 'string',
             ],
-
+            'do_you_have_the_disease' => [
+                new RequiredIf($this->vital_type == VitalParameter::GLUCOSE or $this->vital_type == VitalParameter::BLOODPRESSURE or $this->vital_type == VitalParameter::MALNUTRITION),
+                'string',
+            ],
             'oxygen_saturation' => [
                 new RequiredIf($this->vital_type == VitalParameter::OXYGEN),
                 'string',

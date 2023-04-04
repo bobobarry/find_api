@@ -34,15 +34,38 @@ class RDTController extends Controller
 
         $validatedData['rdt_image'] = $this->uploadPhoto($request);
         if($validatedData['rdt_image'] !== null) {
-            RdtSreening::where('patient_id', $request['patient_id'])
+            $success = RdtSreening::where('patient_id', $request['patient_id'])
             ->where('rdt_type', $request['rdt_type'])
             ->where('symptome_id', $request['symptome_id'])
             ->update([
-                'rdt_image' => 'test.jpg',
+                'rdt_image' => $validatedData['rdt_image'],
                 'rdt_result' => $validatedData['rdt_result'],
                 'created_by' => Auth::user()->id,
-                'rdt_result_at' => Carbon::now()
+                'rdt_result_at' => Carbon::now() 
             ]);
+            if($success !== null) {
+                // if($vital_data['vital_type'] == VitalParameter::GLUCOSE or $vital_data['vital_type'] == VitalParameter::BLOODPRESSURE or $vital_data['vital_type'] == VitalParameter::MALNUTRITION) {
+                //     if($request['do_you_have_the_disease'] == 'No' and $VitalParameter->vital_flag >= 2) {
+                //         $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                //         $new = new NewDiagnosted();
+                //         $new->patient_id = $VitalParameter->patient_id;
+                //         $new->diagnosted = $VitalParameter->vital_type;
+                //         $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                //         $new->status = 'first';
+                //         $new->is_active = 1;
+                //         $new->save();
+                //     } else if($request['do_you_have_the_disease'] == 'Yes') {
+                //         $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                //         $new = new NewDiagnosted();
+                //         $new->patient_id = $VitalParameter->patient_id;
+                //         $new->diagnosted = $VitalParameter->vital_type;
+                //         $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                //         $new->status = 'know';
+                //         $new->is_active = 1;
+                //         $new->save();
+                //     }
+                // } 
+            }
         }
         return $this->successResponse($validatedData);
     }
@@ -91,7 +114,29 @@ class RDTController extends Controller
 
             return $photoName;
         }
-}
+    }
+
+    public function addRdtResultText(Request $request) {
+        $success = RdtSreening::where('patient_id', $request['patient_id'])
+            ->where('rdt_type', $request['rdt_type'])
+            ->where('symptome_id', $request['symptome_id'])
+            ->update([
+                'rdt_result' => $request['rdt_result'],
+                'created_by' => Auth::user()->id,
+                'rdt_result_at' => Carbon::now() 
+            ]);
+
+    }
+
+    public function getLastAdd(Request $request) {
+        $result = RdtSreening::where('patient_id', $request['patient_id'])
+            ->where('rdt_type', $request['rdt_type'])
+            ->where('symptome_id', $request['symptome_id'])
+            ->where('is_active', 1)
+            ->first();
+            
+        return $this->successResponse($result);
+    }
 
     
 }
