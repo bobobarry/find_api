@@ -21,7 +21,7 @@ class PatientDemographic extends Model
     public function vitals() {
         return $this->hasMany(VitalParameter::class,'patient_id')->where('is_active','=', 1)->orderBy('id', 'DESC');
     }
-        public function oxygens(){
+    public function oxygens(){
         return $this->hasMany(VitalParameter::class,'patient_id')->where('vital_type', '=' ,'oxygen')->orderBy('id', 'DESC');
     }
     public function malnutritions(){
@@ -36,6 +36,9 @@ class PatientDemographic extends Model
     public function oxygen(){
         return $this->hasMany(VitalParameter::class,'patient_id')->where('vital_type', '=' ,'oxygen')->where('is_active', '=' ,true)->orderBy('id', 'DESC');
     }
+    public function symptom(){
+        return $this->hasMany(PatientSympthoms::class,'patient_id')->where('is_active', '=' ,true)->orderBy('id', 'DESC');
+    }
     public function glucoses(){
         return $this->hasMany(VitalParameter::class,'patient_id')->where('vital_type', '=' ,'glucose')->orderBy('id', 'DESC');
     }
@@ -47,6 +50,16 @@ class PatientDemographic extends Model
     }
     public function covids() {
         return $this->hasMany(RdtSreening::class,'patient_id')->where('rdt_type','=', 'covid')->orderBy('id', 'DESC');
+    }
+
+    public function referal() {
+        return $this->hasMany(PatientReferalsOk::class,'patient_id')->where('is_active','=', 1)->orderBy('id', 'DESC');
+    }
+    public function follow() {
+        return $this->hasMany(PatientFollowedOk::class,'patient_id')->where('is_active','=', 1)->orderBy('id', 'DESC');
+    }
+    public function referals() {
+        return $this->hasMany(Referals::class,'patient_id')->where('is_active','=', 1)->orderBy('id', 'DESC');
     }
     public function user() {
         return $this->belongsTo(User::class);

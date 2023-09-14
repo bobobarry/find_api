@@ -6,13 +6,16 @@ use App\Http\Requests\VitalParameterRequest;
 use App\Models\NewDiagnosted;
 use App\Models\PatientDemographic;
 use App\Models\VitalParameter;
+use App\Traits\TraitMakeReferals;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Mockery\Undefined;
 
+
 class VitalParameterController extends Controller
 {
+    use TraitMakeReferals;
     /**
      * Display a listing of the resource.
      *
@@ -102,6 +105,16 @@ class VitalParameterController extends Controller
             
             
         }
+
+        //Referal process
+
+        if($vital_data['vital_type'] == VitalParameter::GLUCOSE or $vital_data['vital_type'] == VitalParameter::BLOODPRESSURE or $vital_data['vital_type'] == VitalParameter::MALNUTRITION) {
+            if($VitalParameter->vital_flag >= 2) {
+                $this->createReferals($VitalParameter->id, $VitalParameter->patient_id, $vital_data['vital_type'],$VitalParameter->bp_sys_avarage,$VitalParameter->bp_dias_avarage);
+            }else {
+                $this->canceledReferal($VitalParameter->id, $VitalParameter->patient_id, $vital_data['vital_type']);
+            }
+        }
         return $this->successResponse($VitalParameter, "Paramettre vital créée avec succès");
     }
 
@@ -167,7 +180,7 @@ class VitalParameterController extends Controller
             case VitalParameter::TEMPERATURE:
                 if($request_data['temperature'] == '35.9 > Hypotermy') {
                     $status = VitalParameter::FLAG_MID_BAD;
-                } elseif($request_data['temperature'] == '36.5 - 37.5 Normal') {
+                } elseif($request_data['temperature'] == '35.9 - 37.5 Normal') {
                     $status = VitalParameter::FLAG_NORMAL;
                 }elseif($request_data['temperature'] == '37.5 - 38.5 Hypotermia') {
                     $status = VitalParameter::FLAG_VER_BAD;
@@ -265,6 +278,14 @@ class VitalParameterController extends Controller
 
     public function isDisease($patientID, $type) {
         NewDiagnosted::where('patient_id', $patientID)->where('diagnosted',$type)->update(array('is_active' => 0));
+    }
+
+    public function vitalSheets() {
+
+        $vitalsData = VitalParameter::whereIn('vital_type', array('glucose', 'bloodPressure', 'malnutrition'))
+                                        ->where('is_active', true)
+                                        ->get();
+        return $vitalsData;
     }
 
 }
