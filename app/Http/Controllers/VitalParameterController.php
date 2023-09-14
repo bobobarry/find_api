@@ -3,14 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\VitalParameterRequest;
+use App\Models\NewDiagnosted;
 use App\Models\PatientDemographic;
 use App\Models\VitalParameter;
+use App\Traits\TraitMakeReferals;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Mockery\Undefined;
+
 
 class VitalParameterController extends Controller
 {
+    use TraitMakeReferals;
     /**
      * Display a listing of the resource.
      *
@@ -30,7 +35,86 @@ class VitalParameterController extends Controller
     public function store(VitalParameterRequest $request)
     {
         $vital_data = $this->setFlag($request->validated());
+        
         $VitalParameter = VitalParameter::updateOrCreate(['id' => $request['id']], $vital_data);
+        if($VitalParameter->id != null and !isset($request['id'])) {
+
+            if($vital_data['vital_type'] == VitalParameter::GLUCOSE or $vital_data['vital_type'] == VitalParameter::BLOODPRESSURE or $vital_data['vital_type'] == VitalParameter::MALNUTRITION) {
+                if($request['do_you_have_the_disease'] == 'No' and $VitalParameter->vital_flag >= 2) {
+                    $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                    $new = new NewDiagnosted();
+                    $new->patient_id = $VitalParameter->patient_id;
+                    $new->diagnosted = $VitalParameter->vital_type;
+                    $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                    $new->status = 'first';
+                    $new->is_active = 1;
+                    $new->save();
+                } else if($request['do_you_have_the_disease'] == 'Yes') {
+                    $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                    $new = new NewDiagnosted();
+                    $new->patient_id = $VitalParameter->patient_id;
+                    $new->diagnosted = $VitalParameter->vital_type;
+                    $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                    $new->status = 'know';
+                    $new->is_active = 1;
+                    $new->save();
+                }
+            } 
+            
+        } else {
+            $newDias = NewDiagnosted::where('patient_id', $VitalParameter->patient_id)->where('diagnosted', $VitalParameter->vital_type)->first();
+            if($newDias == null) {
+                if($request['do_you_have_the_disease'] == 'No' and $VitalParameter->vital_flag >= 2) {
+                    $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                    $new = new NewDiagnosted();
+                    $new->patient_id = $VitalParameter->patient_id;
+                    $new->diagnosted = $VitalParameter->vital_type;
+                    $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                    $new->status = 'first';
+                    $new->is_active = 1;
+                    $new->save();
+                } else if($request['do_you_have_the_disease'] == 'Yes') {
+                    $this->isDisease($VitalParameter->patient_id, $VitalParameter->vital_type);
+                    $new = new NewDiagnosted();
+                    $new->patient_id = $VitalParameter->patient_id;
+                    $new->diagnosted = $VitalParameter->vital_type;
+                    $new->do_you_have_the_disease = $request['do_you_have_the_disease'];
+                    $new->status = 'know';
+                    $new->is_active = 1;
+                    $new->save();
+                }
+            } else {
+                // chercher a ajouter ici si c'est une modification   
+                if($VitalParameter->vital_flag <= 1) {
+                    NewDiagnosted::where('patient_id', $VitalParameter->patient_id) 
+                    ->where('diagnosted', "$VitalParameter->vital_type")
+                    ->where('is_active', 1)
+                    ->delete();
+                } else {
+                    NewDiagnosted::where('patient_id', $VitalParameter->patient_id) 
+                                ->where('diagnosted', "$VitalParameter->vital_type")
+                                ->where('is_active', 1)
+                                ->update(array(
+                                            'do_you_have_the_disease' => $request['do_you_have_the_disease'],
+                                            'status'                 => $request['do_you_have_the_disease'] == 'Yes' ? 'know' : 'first'
+                                            )
+                                );
+                }
+
+            }
+            
+            
+        }
+
+        //Referal process
+
+        if($vital_data['vital_type'] == VitalParameter::GLUCOSE or $vital_data['vital_type'] == VitalParameter::BLOODPRESSURE or $vital_data['vital_type'] == VitalParameter::MALNUTRITION) {
+            if($VitalParameter->vital_flag >= 2) {
+                $this->createReferals($VitalParameter->id, $VitalParameter->patient_id, $vital_data['vital_type'],$VitalParameter->bp_sys_avarage,$VitalParameter->bp_dias_avarage);
+            }else {
+                $this->canceledReferal($VitalParameter->id, $VitalParameter->patient_id, $vital_data['vital_type']);
+            }
+        }
         return $this->successResponse($VitalParameter, "Paramettre vital créée avec succès");
     }
 
@@ -98,8 +182,10 @@ class VitalParameterController extends Controller
                     $status = VitalParameter::FLAG_MID_BAD;
                 } elseif($request_data['temperature'] == '35.9 - 37.5 Normal') {
                     $status = VitalParameter::FLAG_NORMAL;
-                }else{
+                }elseif($request_data['temperature'] == '37.5 - 38.5 Hypotermia') {
                     $status = VitalParameter::FLAG_VER_BAD;
+                }else{
+                    $status = VitalParameter::FLAG_DANGER;
                 }
                 $data = [
                     'patient_id' => $request_data['patient_id'],
@@ -114,9 +200,9 @@ class VitalParameterController extends Controller
                 $numberAsString = $request_data['glucose_level'];
                 if ($numberAsString <= 0.7 OR $numberAsString <= 1.20) {
                     $status = VitalParameter::FLAG_NORMAL;
-                } elseif ($numberAsString <= 1.21 OR $numberAsString <= 1.26) {
+                } elseif ($numberAsString <= 1.21 OR $numberAsString <= 1.25 ) {
                     $status = VitalParameter::FLAG_MID_BAD;
-                } elseif ($numberAsString > 1.26) {
+                } elseif ($numberAsString >= 1.26) {
                     $status = VitalParameter::FLAG_VER_BAD;
                 }
                 $data = [
@@ -156,7 +242,6 @@ class VitalParameterController extends Controller
             case VitalParameter::MALNUTRITION:
                 $patient = PatientDemographic::find($request_data['patient_id']);
                 $age = Carbon::parse($patient->date_of_birth)->age;
-                $status = 0;
                 if($age < 5) {
                     if($request_data['arm_circumference'] < 125 ) {
                         $status = VitalParameter::FLAG_DANGER;
@@ -189,6 +274,18 @@ class VitalParameterController extends Controller
             $data['created_by'] = Auth::user()->id;
         }
         return $data;
+    }
+
+    public function isDisease($patientID, $type) {
+        NewDiagnosted::where('patient_id', $patientID)->where('diagnosted',$type)->update(array('is_active' => 0));
+    }
+
+    public function vitalSheets() {
+
+        $vitalsData = VitalParameter::whereIn('vital_type', array('glucose', 'bloodPressure', 'malnutrition'))
+                                        ->where('is_active', true)
+                                        ->get();
+        return $vitalsData;
     }
 
 }

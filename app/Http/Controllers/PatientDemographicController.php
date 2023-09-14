@@ -8,13 +8,17 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Intervention\Image\Facades\Image;
 use App\Models\PatientDemographic;
 use App\Models\RdtSreening;
+use App\Models\Referals;
 use App\Models\User;
 use App\Models\VitalParameter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Traits\TraitMakeReferals;
+use App\Models\NewDiagnosted;
 
 class PatientDemographicController extends Controller
 {
+    use TraitMakeReferals;
 
     /**
      * Display a listing of the resource.
@@ -29,7 +33,7 @@ class PatientDemographicController extends Controller
                                             $q->where('date_of_registration','>=', Carbon::parse($request->dateRange['from'])->format('Y-m-d'))
                                                 ->where('date_of_registration','<=', Carbon::parse($request->dateRange['to'])->format('Y-m-d'));
                                         })
-        
+                                    ->where('date_of_registration', Carbon::now()->format('Y-m-d'))
                                     ->with(['rdts','vitals', 'covids','malarias','bloodPressures', 'glucoses','malnutritions'])
                                     ->orderBy('id', 'DESC')
                                     ->get();
@@ -133,7 +137,7 @@ class PatientDemographicController extends Controller
     public function qrCode($patientID) {
 
         $path = public_path('qrCode/'.time().'.png');
-        $text = 'https://demo.laclinico.com/detail-patient/' . $patientID;
+        $text = 'https://find.laclinico.com/detail-patient/' . $patientID;
   
         $image = QrCode::format('png')
         ->size(500)
@@ -253,7 +257,11 @@ class PatientDemographicController extends Controller
     }
 
     public function statsVitalDetails($type) {
-        $flag = [VitalParameter::FLAG_NORMAL,VitalParameter::FLAG_MID_BAD,VitalParameter::FLAG_VER_BAD]; 
+        $flago = 2; 
+        if($type == 'bloodPressure') {
+            $flago = 3;
+        }
+        $flag = [VitalParameter::FLAG_NORMAL,VitalParameter::FLAG_MID_BAD,$flago]; 
         $counterFlag = [];
         for($i=0; $i< count($flag);$i++) {
             $counterFlag[] = VitalParameter::where('vital_type', $type)
@@ -292,7 +300,7 @@ class PatientDemographicController extends Controller
                                 $query->where('created_at', date('Y-m-d'));
                             }])
                             // ->has('symptoms', '>', 0)
-                            ->whereIn('email', ['tambapaulsossouadouno@gmail.com','dialloamie162@gmail.com','cecilebalamou15@gmail.com'])
+                            // ->whereIn('email', ['tambapaulsossouadouno@gmail.com','dialloamie162@gmail.com','cecilebalamou15@gmail.com'])
                         ->get();
 
                         return $this->successResponse($posts, null);
@@ -368,6 +376,64 @@ class PatientDemographicController extends Controller
                     ->get();
 
                     return $this->successResponse($posts, null);
-     }
+    }
+
+    public function mustBeReferal(PatientDemographic $patient) {
+        return Referals::where('patient_id', $patient->id)->count();
+    }
+
+    public function referalByPatient(PatientDemographic $patient) {
+        return $this->getPatientReferals($patient->id);
+    }
+
+    public function referalByPatientOK(PatientDemographic $patient) {
+        return $this->getPatientReferalsOK($patient->id);
+    }
+
+
+    public function allConditionsPatient(PatientDemographic $patient) {
+        $data =  PatientDemographic::with(['vitals',])
+                                    ->where('id', $patient->id)
+                                    ->orderBy('id', 'DESC')
+                                    ->get('patient_uid');
+
+        return $this->successResponse($data, null);
+    }
+
+    public function sheets()
+    {
+        $result =  PatientDemographic::orderBy('id', 'DESC')
+                                    ->get();
+
+        return ($result);
+    }
+    
+    public function NewDiagnostedSheets()
+    {
+        $result =  NewDiagnosted::where('is_active',true)
+                                    ->where('status','first')
+                                    ->get();
+
+        return ($result);
+    }
+    
+    
+    
+    public function amigoRdtMalariaSheets() {
+        
+        $users = \DB::select("SELECT * FROM patient_demographic WHERE date_of_registration = '2023-06-21' and id IN (SELECT patient_id FROM rdt_sreening where rdt_result IS NULL and rdt_type = 'malaria' )");
+
+        return $users; // 1
+        
+    }
+    
+    public function amigoRdtCovidSheets() {
+        
+        $users = \DB::select("SELECT * FROM patient_demographic WHERE date_of_registration = '2023-06-21' and id IN (SELECT patient_id FROM rdt_sreening where rdt_result IS NULL and rdt_type = 'covid' )");
+
+        return $users; // 1
+        
+    }
+    
 
 }
